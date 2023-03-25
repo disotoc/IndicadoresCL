@@ -57,4 +57,28 @@ Lo primero a analizar fue la evolución del dólar durante los últimos años, s
 Como se puede apreciar el dólar tuvo un alza por sobre los 1.000 CLP a mediados del 2022, esto poco a poco se ha ido estabilizando y ahora la tendencia es principalmente a la baja. Con respecto al IPC realmente no debería influir ya que el gráfico no muestra alguna relación en las subidas y bajadas. Por esta razón se buscará alguna otra relación entre indicadores.
 
 ### IPC con otros indicadores
-Al ser el IPC un indicador mensual, para compararlos se tendrá que crear un nuevo df con los datos del IPC y los datos de los otros indicadores para esa fecha en concreto
+Al ser el IPC un indicador mensual y como algunos otros indicadores los fines de semana no se mueven, para compararlos se tendrá que crear un nuevo df con los datos del IPC y los datos de los otros indicadores para esa fecha en concreto, para suplir esto, se creó un nuevo df con las fechas del primer y último indicador de IPC, luego ese df se juntará con otro, para rellenar los espacios en blanco por medio de los métodos ``ffill()`` y ``bfill()``. El resultado de esto se junta con el data frame original de IPC.
+El código utilizado es:
+```python
+# Creación de df fechas con el máximo y mínimo de ipc, esto con el fin que en el siguiente for, pueda completar los registros faltantes en algunas fechas
+fechas = pd.date_range(start=df_ipc['fecha'].min(), end=df_ipc['fecha'].max())
+df_fechas = pd.DataFrame({'fecha': fechas})
+
+# Lo siguiente se recorre con un for por indicador
+df_i = df_indicadores_original[df_indicadores_original['indicador'] == i].copy().reset_index()
+df_i = df_i.drop(['indicador', 'index'], axis=1)
+df_i = df_i.rename(columns={'valor': i})
+df_i['fecha'] = pd.to_datetime(df_i['fecha'].dt.date)
+
+# Se crea un join con el df fechas creado anteriormente para obtener los datos más aproximados de las fechas
+df_aux = pd.merge(df_fechas, df_i, on='fecha', how='left')
+# Lo siguiente es para rellenar los campos vacíos con el valor más cercano antes de hacer el join con la tabla de ipc
+df_aux = df_aux.ffill() # Primero rellena todo hacia abajo
+df_aux = df_aux.bfill() # Para los casos en que la primera fila quede con NaN, se rellena hacia arriba
+df_final = pd.merge(df_ipc, df_aux, on='fecha', how='left')
+```
+
+Luego del recorrido anterior, se crea un gráfico de dispersión por cada indicador vs IPC, el resultado es el siguiente:
+![Diagrama de dispersión entre IPC y otros indicadores](assets/DispersiónIPC.png)
+
+Gracias a este gráfico podemos comprobar que el valor del IPC no tiene relación con ninguno de los otros indicadores.
